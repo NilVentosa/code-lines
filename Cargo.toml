@@ -1,0 +1,15 @@
+[package]
+name = "code-lines"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nil Ventosa <ventosa@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "A library to fetch lines of code of different languages"
+readme = "README.md"
+homepage = "https://github.com/nilventosa/code-lines"
+repository = "https://github.com/nilventosa/code-lines"
+keywords = ["code", "lines"]
+
+[dependencies]
+glob = "0.3.0"
+rand = "0.8.5"
