@@ -10,6 +10,7 @@ use std::{
 
 pub enum Language {
     Rust,
+    Java,
 }
 
 impl Language {
@@ -23,16 +24,21 @@ impl Language {
 
                 Ok(String::from(&format!("{home}/.cargo/registry/src/**/*.rs")))
             }
+            Language::Java => {
+                let java_path = match env::var("JAVA_LINES") {
+                    Ok(j) => j,
+                    Err(e) => return Err(e.to_string()),
+                };
+                Ok(String::from(java_path))
+            }
         }
     }
 
     fn get_paths(&self) -> Result<Vec<String>, LinesError> {
-        let result = match self {
-            Language::Rust => glob(&self.get_folder().unwrap())
-                .unwrap()
-                .map(|p| p.unwrap().display().to_string())
-                .collect(),
-        };
+        let result = glob(&self.get_folder().unwrap())
+            .unwrap()
+            .map(|p| p.unwrap().display().to_string())
+            .collect();
 
         Ok(result)
     }
@@ -86,6 +92,7 @@ fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
             .filter(|l| !l.contains('/') && l.len() > 10)
             .map(|l| l.trim().to_string())
             .collect(),
+        Language::Java => lines,
     }
 }
 
