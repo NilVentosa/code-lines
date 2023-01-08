@@ -29,7 +29,7 @@ impl Language {
                     Ok(j) => j,
                     Err(e) => return Err(e.to_string()),
                 };
-                Ok(String::from(java_path))
+                Ok(String::from(&format!("{java_path}/**/*.java")))
             }
         }
     }
@@ -92,7 +92,11 @@ fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
             .filter(|l| !l.contains('/') && l.len() > 10)
             .map(|l| l.trim().to_string())
             .collect(),
-        Language::Java => lines,
+        Language::Java => lines
+            .into_iter()
+            .filter(|l| !l.contains('/') && l.len() > 10)
+            .map(|l| l.trim().to_string())
+            .collect(),
     }
 }
 
