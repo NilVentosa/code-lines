@@ -91,9 +91,17 @@ impl fmt::Display for LinesError {
 
 impl Error for LinesError {}
 
+///
+/// Returns a random line of code that matches de config argument
+/// It returns a [`LinesError`] if none is found
+///
+/// # Arguments
+///
+/// * `config` - A reference to a [`LineConfig`]
+///
 pub fn get_random_line(config: &LineConfig) -> LinesResult<String> {
     match File::open(get_random_file_path(config)?) {
-        Ok(file) => get_random_string(filter_code_lines(config, get_lines_from_file(file))),
+        Ok(file) => get_random_string(&filter_code_lines(config, get_lines_from_file(file))),
         Err(e) => Err(LinesError(e.to_string())),
     }
 }
@@ -106,7 +114,7 @@ fn get_lines_from_file(file: File) -> Vec<String> {
 }
 
 fn get_random_file_path(config: &LineConfig) -> LinesResult<String> {
-    get_random_string(config.language.get_paths()?)
+    get_random_string(&config.language.get_paths()?)
 }
 
 fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
@@ -124,7 +132,7 @@ fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
     }
 }
 
-fn get_random_string(lines: Vec<String>) -> LinesResult<String> {
+fn get_random_string(lines: &Vec<String>) -> LinesResult<String> {
     match lines.choose(&mut thread_rng()) {
         Some(line) => Ok(line.to_string()),
         None => Err(LinesError(String::from("Error getting random string."))),
@@ -135,20 +143,19 @@ fn get_random_string(lines: Vec<String>) -> LinesResult<String> {
 mod tests {
     use super::*;
 
-    fn get_test_code_lines_vec() -> Vec<String> {
-        vec![
+    #[test]
+    fn test_filter_rust_code_lines() {
+        let code_lines = vec![
             "///".to_string(),
             "let thing".to_string(),
             "         let thing = do_this_long_thing(hello)".to_string(),
-        ]
-    }
+        ];
 
-    #[test]
-    fn test_filter_code_lines() {
         let config = LineConfig {
             language: Language::Rust,
         };
-        let result = filter_code_lines(&config, get_test_code_lines_vec());
+
+        let result = filter_code_lines(&config, code_lines);
         assert_eq!(result.len(), 1);
         assert_eq!(
             result.get(0).unwrap(),
@@ -157,14 +164,21 @@ mod tests {
     }
 
     #[test]
-    fn test_get_random_line_one_line() {
-        let result = get_random_string(vec![String::from("random")]);
+    fn test_get_random_string_one_string() {
+        let result = get_random_string(&vec![String::from("random")]);
         assert_eq!(result.unwrap(), String::from("random"));
     }
 
     #[test]
-    fn test_get_random_line_no_lines() {
-        let result = get_random_string(vec![]);
+    fn test_get_random_string_no_strings() {
+        let result = get_random_string(&vec![]);
         assert_eq!(true, result.is_err());
+    }
+
+    #[test]
+    fn test_get_random_string_various_strings() {
+        let thing = vec![String::from("o"), String::from("a")];
+        let result = get_random_string(&thing);
+        assert_eq!(true, thing.contains(&result.unwrap()));
     }
 }
