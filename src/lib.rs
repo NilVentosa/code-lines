@@ -8,39 +8,71 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+type LinesResult<T> = Result<T, LinesError>;
+
 pub enum Language {
     Rust,
     Java,
 }
 
 impl Language {
-    fn get_folder(&self) -> Result<String, String> {
-        match self {
-            Language::Rust => {
-                let home = match env::var("HOME") {
-                    Ok(h) => h,
-                    Err(e) => return Err(e.to_string()),
-                };
+    fn default_folder(&self) -> Option<String> {
+        let home = match env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return None,
+        };
 
-                Ok(String::from(&format!("{home}/.cargo/registry/src/**/*.rs")))
-            }
-            Language::Java => {
-                let java_path = match env::var("JAVA_LINES") {
-                    Ok(j) => j,
-                    Err(e) => return Err(e.to_string()),
-                };
-                Ok(String::from(&format!("{java_path}/**/*.java")))
-            }
+        match self {
+            Language::Rust => Some(String::from(&format!("{home}/.cargo/registry/src/**/*.rs"))),
+            Language::Java => None,
         }
     }
 
-    fn get_paths(&self) -> Result<Vec<String>, LinesError> {
-        let result = glob(&self.get_folder().unwrap())
-            .unwrap()
-            .map(|p| p.unwrap().display().to_string())
-            .collect();
+    fn env_var_folder(&self) -> Option<String> {
+        match self {
+            Language::Rust => match env::var("RUST_LINES") {
+                Ok(folder) => return Some(format!("{folder}/**/*.rust")),
+                Err(_) => None,
+            },
+            Language::Java => match env::var("JAVA_LINES") {
+                Ok(folder) => return Some(format!("{folder}/**/*.java")),
+                Err(_) => None,
+            },
+        }
+    }
 
-        Ok(result)
+    fn folder(&self) -> Option<String> {
+        if self.env_var_folder().is_some() {
+            return self.env_var_folder();
+        }
+        if self.default_folder().is_some() {
+            return self.default_folder();
+        }
+        None
+    }
+
+    fn get_paths(&self) -> LinesResult<Vec<String>> {
+        if let Some(folder) = &self.folder() {
+            if let Ok(paths) = glob(folder) {
+                return Ok(paths
+                    .filter_map(Result::ok)
+                    .map(|p| p.display().to_string())
+                    .collect());
+            };
+        }
+        Err(LinesError(format!(
+            "Error getting file paths for {}.",
+            self
+        )))
+    }
+}
+
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Language::Rust => write!(f, "Rust"),
+            Language::Java => write!(f, "Java"),
+        }
     }
 }
 
@@ -49,7 +81,7 @@ pub struct LineConfig {
 }
 
 #[derive(Debug)]
-struct LinesError(String);
+pub struct LinesError(String);
 
 impl fmt::Display for LinesError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -59,30 +91,22 @@ impl fmt::Display for LinesError {
 
 impl Error for LinesError {}
 
-pub fn get_random_line(config: &LineConfig) -> Result<String, Box<dyn Error>> {
-    let file = File::open(get_random_file_path(&config)?)?;
-    let lines = filter_code_lines(&config, get_lines_from_file(file));
-    match get_random_string(lines) {
-        Some(s) => Ok(s),
-        None => Err(Box::new(LinesError("Error getting random line.".into()))),
+pub fn get_random_line(config: &LineConfig) -> LinesResult<String> {
+    match File::open(get_random_file_path(config)?) {
+        Ok(file) => get_random_string(filter_code_lines(config, get_lines_from_file(file))),
+        Err(e) => Err(LinesError(e.to_string())),
     }
 }
 
 fn get_lines_from_file(file: File) -> Vec<String> {
-    let lines: Vec<String> = BufReader::new(file)
+    BufReader::new(file)
         .lines()
-        .filter_map(|l| l.ok())
-        .collect();
-    lines
+        .filter_map(Result::ok)
+        .collect()
 }
 
-fn get_random_file_path(config: &LineConfig) -> Result<String, Box<dyn Error>> {
-    match get_random_string(config.language.get_paths()?) {
-        Some(s) => Ok(s),
-        None => Err(Box::new(LinesError(
-            "Error getting random file path.".into(),
-        ))),
-    }
+fn get_random_file_path(config: &LineConfig) -> LinesResult<String> {
+    get_random_string(config.language.get_paths()?)
 }
 
 fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
@@ -100,8 +124,11 @@ fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
     }
 }
 
-fn get_random_string(lines: Vec<String>) -> Option<String> {
-    Some(lines.choose(&mut thread_rng())?.to_string())
+fn get_random_string(lines: Vec<String>) -> LinesResult<String> {
+    match lines.choose(&mut thread_rng()) {
+        Some(line) => Ok(line.to_string()),
+        None => Err(LinesError(String::from("Error getting random string."))),
+    }
 }
 
 #[cfg(test)]
@@ -132,12 +159,12 @@ mod tests {
     #[test]
     fn test_get_random_line_one_line() {
         let result = get_random_string(vec![String::from("random")]);
-        assert_eq!(result, Some(String::from("random")));
+        assert_eq!(result.unwrap(), String::from("random"));
     }
 
     #[test]
     fn test_get_random_line_no_lines() {
         let result = get_random_string(vec![]);
-        assert_eq!(result, None);
+        assert_eq!(true, result.is_err());
     }
 }
