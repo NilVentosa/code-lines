@@ -10,6 +10,9 @@ use std::{
 
 type LinesResult<T> = Result<T, LinesError>;
 
+///
+/// The supported languages
+///
 pub enum Language {
     Rust,
     Java,
@@ -76,10 +79,19 @@ impl fmt::Display for Language {
     }
 }
 
+///
+/// Configuration of the requested lines
+///
 pub struct LineConfig {
+    ///
+    /// The language that you want the lines from
+    ///
     pub language: Language,
 }
 
+///
+/// Error thrown by the library when something goes wrong
+///
 #[derive(Debug)]
 pub struct LinesError(String);
 
