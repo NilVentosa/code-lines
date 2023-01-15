@@ -12,5 +12,5 @@ A library to get lines of code.
 - [x] Remove unwraps
 - [ ] Fetch code from the web
 - [ ] Add more tests
-- [ ] Add more documentation
+- [x] Add more documentation
 - [ ] ...

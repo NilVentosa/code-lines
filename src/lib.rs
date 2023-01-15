@@ -68,6 +68,21 @@ impl Language {
             self
         )))
     }
+
+    fn filter_lines(&self, lines: Vec<String>) -> Vec<String> {
+        match self {
+            Language::Rust => lines
+                .into_iter()
+                .filter(|l| !l.contains('/') && l.len() > 10)
+                .map(|l| l.trim().to_string())
+                .collect(),
+            Language::Java => lines
+                .into_iter()
+                .filter(|l| !l.contains('/') && l.len() > 10 && !l.contains("import"))
+                .map(|l| l.trim().to_string())
+                .collect(),
+        }
+    }
 }
 
 impl fmt::Display for Language {
@@ -113,7 +128,7 @@ impl Error for LinesError {}
 ///
 pub fn get_random_line(config: &LineConfig) -> LinesResult<String> {
     match File::open(get_random_file_path(config)?) {
-        Ok(file) => get_random_string(&filter_code_lines(config, get_lines_from_file(file))),
+        Ok(file) => get_random_string(&&config.language.filter_lines(get_lines_from_file(file))),
         Err(e) => Err(LinesError(e.to_string())),
     }
 }
@@ -129,21 +144,6 @@ fn get_random_file_path(config: &LineConfig) -> LinesResult<String> {
     get_random_string(&config.language.get_paths()?)
 }
 
-fn filter_code_lines(config: &LineConfig, lines: Vec<String>) -> Vec<String> {
-    match config.language {
-        Language::Rust => lines
-            .into_iter()
-            .filter(|l| !l.contains('/') && l.len() > 10)
-            .map(|l| l.trim().to_string())
-            .collect(),
-        Language::Java => lines
-            .into_iter()
-            .filter(|l| !l.contains('/') && l.len() > 10)
-            .map(|l| l.trim().to_string())
-            .collect(),
-    }
-}
-
 fn get_random_string(lines: &Vec<String>) -> LinesResult<String> {
     match lines.choose(&mut thread_rng()) {
         Some(line) => Ok(line.to_string()),
@@ -155,22 +155,39 @@ fn get_random_string(lines: &Vec<String>) -> LinesResult<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_filter_rust_code_lines() {
-        let code_lines = vec![
+    fn get_lines() -> Vec<String> {
+        vec![
+            "import thing thing thing".to_string(),
             "///".to_string(),
             "let thing".to_string(),
-            "         let thing = do_this_long_thing(hello)".to_string(),
-        ];
+            "         let thing = do_this_long_thing(hello)  ".to_string(),
+        ]
+    }
 
+    #[test]
+    fn test_language_filter_lines_java() {
+        let config = LineConfig {
+            language: Language::Java,
+        };
+
+        let result = config.language.filter_lines(get_lines());
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result.get(0).unwrap(),
+            "let thing = do_this_long_thing(hello)"
+        );
+    }
+
+    #[test]
+    fn test_language_filter_lines_rust() {
         let config = LineConfig {
             language: Language::Rust,
         };
 
-        let result = filter_code_lines(&config, code_lines);
-        assert_eq!(result.len(), 1);
+        let result = config.language.filter_lines(get_lines());
+        assert_eq!(result.len(), 2);
         assert_eq!(
-            result.get(0).unwrap(),
+            result.get(1).unwrap(),
             "let thing = do_this_long_thing(hello)"
         );
     }
