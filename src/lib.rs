@@ -13,12 +13,28 @@ type LinesResult<T> = Result<T, LinesError>;
 ///
 /// The supported languages
 ///
+#[derive(PartialEq, Debug)]
 pub enum Language {
     Rust,
     Java,
 }
 
+impl Copy for Language {}
+impl Clone for Language {
+   fn clone(&self) -> Self {
+       Language::Rust
+   } 
+}
+
 impl Language {
+    pub fn from(lang: &str)-> LinesResult<Self> {
+        match lang.to_lowercase().as_str() {
+            "rust" => Ok(Language::Rust),
+            "java" => Ok(Language::Java),
+            _ => Err(LinesError(format!("Language {lang} not supported"))),
+        }
+    }
+
     fn default_folder(&self) -> Option<String> {
         let home = match env::var("HOME") {
             Ok(h) => h,
@@ -209,5 +225,16 @@ mod tests {
         let thing = vec![String::from("o"), String::from("a")];
         let result = get_random_string(&thing);
         assert_eq!(true, thing.contains(&result.unwrap()));
+    }
+
+
+    #[test]
+    fn test_language_from_java() {
+        assert_eq!(Language::Java, Language::from("java").unwrap());
+    }
+
+    #[test]
+    fn test_language_from_rust() {
+        assert_eq!(Language::Rust, Language::from("rUST").unwrap());
     }
 }
