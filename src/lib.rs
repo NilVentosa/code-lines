@@ -135,8 +135,13 @@ impl fmt::Display for LinesError {
 impl Error for LinesError {}
 
 ///
-/// Returns a random line of code that matches de config argument
-/// It returns a [`LinesError`] if none is found
+/// Returns a random line of code that matches de config argument  
+/// It returns a [`LinesError`] if something bad happens
+///
+/// The lines are retrieved from the files in the specified folder and subfolders
+/// in this order:
+/// 1. From environment variable folder if set up (JAVA_LINES, RUST_LINES)
+/// 2. From the default folder (Only for rust)
 ///
 /// # Arguments
 ///
